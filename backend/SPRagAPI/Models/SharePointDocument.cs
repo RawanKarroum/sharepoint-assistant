@@ -10,4 +10,5 @@ public class SharePointDocument
     public string? Author { get; set; }
     public DateTime? LastModified { get; set; }
     public string? ContentType { get; set; }
+    public string ExtractedText { get; set; } = string.Empty;
 }
