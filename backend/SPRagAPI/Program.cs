@@ -7,6 +7,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ISharePointDocumentService, FakeSharePointDocumentService>();
 builder.Services.AddSingleton<IDocumentChunkingService, DocumentChunkingService>();
+builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
 
 var app = builder.Build();
 
