@@ -9,10 +9,14 @@ namespace SPRagAPI.Controllers;
 public class DocumentsController : ControllerBase
 {
     private readonly ISharePointDocumentService _documents;
+    private readonly IDocumentChunkingService _chunker;
 
-    public DocumentsController(ISharePointDocumentService documents)
+    public DocumentsController(
+        ISharePointDocumentService documents,
+        IDocumentChunkingService chunker)
     {
         _documents = documents;
+        _chunker = chunker;
     }
 
     [HttpGet]
@@ -30,5 +34,20 @@ public class DocumentsController : ControllerBase
     {
         var doc = await _documents.GetByIdAsync(id, cancellationToken);
         return doc is null ? NotFound() : Ok(doc);
+    }
+
+    [HttpGet("{id}/chunks")]
+    public async Task<ActionResult<IReadOnlyList<DocumentChunk>>> GetChunks(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        var doc = await _documents.GetByIdAsync(id, cancellationToken);
+        if (doc is null)
+        {
+            return NotFound();
+        }
+
+        var chunks = _chunker.Chunk(doc);
+        return Ok(chunks);
     }
 }
