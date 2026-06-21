@@ -8,6 +8,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ISharePointDocumentService, FakeSharePointDocumentService>();
 builder.Services.AddSingleton<IDocumentChunkingService, DocumentChunkingService>();
 builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
+builder.Services.AddSingleton<IChunkSearchService, KeywordChunkSearchService>();
 
 var app = builder.Build();
 
