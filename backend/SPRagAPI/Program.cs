@@ -9,6 +9,10 @@ builder.Services.AddSingleton<ISharePointDocumentService, FakeSharePointDocument
 builder.Services.AddSingleton<IDocumentChunkingService, DocumentChunkingService>();
 builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
 builder.Services.AddSingleton<IChunkSearchService, KeywordChunkSearchService>();
+builder.Services.Configure<OpenAiOptions>(
+    builder.Configuration.GetSection(OpenAiOptions.SectionName));
+builder.Services.AddSingleton<IAiAnswerService, OpenAiAnswerService>();
+builder.Services.AddSingleton<IChatService, ChatService>();
 
 var app = builder.Build();
 
