@@ -6,6 +6,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<ISharePointDocumentService, FakeSharePointDocumentService>();
+builder.Services.Configure<GraphOneDriveOptions>(
+    builder.Configuration.GetSection(GraphOneDriveOptions.SectionName));
+builder.Services.AddSingleton<GraphOneDriveDocumentService>();
 builder.Services.AddSingleton<IDocumentChunkingService, DocumentChunkingService>();
 builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
 builder.Services.AddSingleton<IChunkSearchService, KeywordChunkSearchService>();

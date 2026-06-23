@@ -12,15 +12,18 @@ public class DocumentsController : ControllerBase
     private readonly ISharePointDocumentService _documents;
     private readonly IDocumentChunkingService _chunker;
     private readonly IDocumentChunkStore _store;
+    private readonly GraphOneDriveDocumentService _oneDrive;
 
     public DocumentsController(
         ISharePointDocumentService documents,
         IDocumentChunkingService chunker,
-        IDocumentChunkStore store)
+        IDocumentChunkStore store,
+        GraphOneDriveDocumentService oneDrive)
     {
         _documents = documents;
         _chunker = chunker;
         _store = store;
+        _oneDrive = oneDrive;
     }
 
     [HttpGet]
@@ -78,5 +81,15 @@ public class DocumentsController : ControllerBase
         };
 
         return Ok(result);
+    }
+
+    // Temporary diagnostic endpoint. Once we're happy with the integration,
+    // we'll bind ISharePointDocumentService to GraphOneDriveDocumentService and remove this.
+    [HttpGet("onedrive-test")]
+    public async Task<ActionResult<IReadOnlyList<SharePointDocument>>> ListOneDrive(
+        CancellationToken cancellationToken)
+    {
+        var docs = await _oneDrive.GetAllAsync(cancellationToken);
+        return Ok(docs);
     }
 }
