@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using SPRagAPI.Data;
 using SPRagAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,12 +15,28 @@ builder.Services.Configure<GraphOneDriveOptions>(
     builder.Configuration.GetSection(GraphOneDriveOptions.SectionName));
 builder.Services.AddSingleton<IFileTextExtractionService, FileTextExtractionService>();
 builder.Services.AddSingleton<IDocumentChunkingService, DocumentChunkingService>();
-builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
-builder.Services.AddSingleton<IChunkSearchService, KeywordChunkSearchService>();
+
+var ragDb = builder.Configuration.GetConnectionString("RagDb");
+if (!string.IsNullOrWhiteSpace(ragDb))
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseSqlServer(ragDb, sqlOptions =>
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null)));
+    builder.Services.AddScoped<IDocumentChunkStore, SqlDocumentChunkStore>();
+}
+else
+{
+    builder.Services.AddSingleton<IDocumentChunkStore, InMemoryDocumentChunkStore>();
+}
+
+builder.Services.AddScoped<IChunkSearchService, KeywordChunkSearchService>();
 builder.Services.Configure<OpenAiOptions>(
     builder.Configuration.GetSection(OpenAiOptions.SectionName));
 builder.Services.AddSingleton<IAiAnswerService, OpenAiAnswerService>();
-builder.Services.AddSingleton<IChatService, ChatService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 
 var app = builder.Build();
 

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SPRagAPI.Data;
 using SPRagAPI.DTOs;
 using SPRagAPI.Models;
 using SPRagAPI.Services;
@@ -13,17 +15,20 @@ public class DocumentsController : ControllerBase
     private readonly IDocumentChunkingService _chunker;
     private readonly IDocumentChunkStore _store;
     private readonly GraphOneDriveDocumentService _oneDrive;
+    private readonly AppDbContext? _db;
 
     public DocumentsController(
         ISharePointDocumentService documents,
         IDocumentChunkingService chunker,
         IDocumentChunkStore store,
-        GraphOneDriveDocumentService oneDrive)
+        GraphOneDriveDocumentService oneDrive,
+        IServiceProvider serviceProvider)
     {
         _documents = documents;
         _chunker = chunker;
         _store = store;
         _oneDrive = oneDrive;
+        _db = serviceProvider.GetService<AppDbContext>();
     }
 
     [HttpGet]
@@ -63,21 +68,48 @@ public class DocumentsController : ControllerBase
     {
         await _store.ClearAsync(cancellationToken);
 
+        if (_db is not null)
+        {
+            await _db.Documents.ExecuteDeleteAsync(cancellationToken);
+        }
+
         var documents = await _documents.GetAllAsync(cancellationToken);
         var chunkCount = 0;
+        var syncedAt = DateTime.UtcNow;
 
         foreach (var doc in documents)
         {
             var chunks = _chunker.Chunk(doc);
-            await _store.AddRangeAsync(chunks, cancellationToken);
             chunkCount += chunks.Count;
+
+            if (_db is not null)
+            {
+                var entity = new DocumentEntity
+                {
+                    Id = doc.Id,
+                    Title = doc.Title,
+                    WebUrl = doc.WebUrl,
+                    SiteId = doc.SiteId,
+                    LibraryName = doc.LibraryName,
+                    Author = doc.Author,
+                    LastModified = doc.LastModified,
+                    ContentType = doc.ContentType,
+                    ExtractedText = doc.ExtractedText,
+                    SyncedAt = syncedAt
+                };
+
+                _db.Documents.Add(entity);
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+
+            await _store.AddRangeAsync(chunks, cancellationToken);
         }
 
         var result = new SyncResult
         {
             DocumentsProcessed = documents.Count,
             ChunksCreated = chunkCount,
-            SyncedAt = DateTime.UtcNow
+            SyncedAt = syncedAt
         };
 
         return Ok(result);
