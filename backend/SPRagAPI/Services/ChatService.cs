@@ -10,53 +10,67 @@ public class ChatService : IChatService
 
     private readonly IChunkSearchService _search;
     private readonly IAiAnswerService _ai;
+    private readonly ILogger<ChatService> _logger;
 
-    public ChatService(IChunkSearchService search, IAiAnswerService ai)
+    public ChatService(
+        IChunkSearchService search,
+        IAiAnswerService ai,
+        ILogger<ChatService> logger)
     {
         _search = search;
         _ai = ai;
+        _logger = logger;
     }
 
     public async Task<ChatResponse> AnswerAsync(
         ChatRequest request,
         CancellationToken cancellationToken = default)
     {
-        var hits = await _search.SearchAsync(request.Question, TopK, cancellationToken);
-
-        if (hits.Count == 0)
+        try
         {
+            var hits = await _search.SearchAsync(request.Question, TopK, cancellationToken);
+            _logger.LogInformation("Chat search returned {HitCount} chunk(s)", hits.Count);
+
+            if (hits.Count == 0)
+            {
+                return new ChatResponse
+                {
+                    Answer = NoMatchAnswer,
+                    Sources = new List<SourceLink>(),
+                    ConversationId = request.ConversationId
+                };
+            }
+
+            var chunks = hits.Select(h => h.Chunk).ToList();
+            var answer = await _ai.GenerateAnswerAsync(request.Question, chunks, cancellationToken);
+
+            var sources = chunks
+                .GroupBy(c => c.DocumentId)
+                .Select(g =>
+                {
+                    var first = g.First();
+                    return new SourceLink
+                    {
+                        DocumentId = first.DocumentId,
+                        Title = first.DocumentTitle ?? string.Empty,
+                        Url = first.DocumentUrl ?? string.Empty,
+                        Snippet = Truncate(first.Content, 240)
+                    };
+                })
+                .ToList();
+
             return new ChatResponse
             {
-                Answer = NoMatchAnswer,
-                Sources = new List<SourceLink>(),
+                Answer = answer,
+                Sources = sources,
                 ConversationId = request.ConversationId
             };
         }
-
-        var chunks = hits.Select(h => h.Chunk).ToList();
-        var answer = await _ai.GenerateAnswerAsync(request.Question, chunks, cancellationToken);
-
-        var sources = chunks
-            .GroupBy(c => c.DocumentId)
-            .Select(g =>
-            {
-                var first = g.First();
-                return new SourceLink
-                {
-                    DocumentId = first.DocumentId,
-                    Title = first.DocumentTitle ?? string.Empty,
-                    Url = first.DocumentUrl ?? string.Empty,
-                    Snippet = Truncate(first.Content, 240)
-                };
-            })
-            .ToList();
-
-        return new ChatResponse
+        catch (Exception ex)
         {
-            Answer = answer,
-            Sources = sources,
-            ConversationId = request.ConversationId
-        };
+            _logger.LogError(ex, "ChatService.AnswerAsync failed");
+            throw;
+        }
     }
 
     private static string Truncate(string text, int max) =>

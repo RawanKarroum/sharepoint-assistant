@@ -9,10 +9,12 @@ namespace SPRagAPI.Controllers;
 public class ChatController : ControllerBase
 {
     private readonly IChatService _chat;
+    private readonly ILogger<ChatController> _logger;
 
-    public ChatController(IChatService chat)
+    public ChatController(IChatService chat, ILogger<ChatController> logger)
     {
         _chat = chat;
+        _logger = logger;
     }
 
     [HttpPost]
@@ -25,7 +27,23 @@ public class ChatController : ControllerBase
             return BadRequest(new { error = "request.question is required." });
         }
 
-        var response = await _chat.AnswerAsync(request, cancellationToken);
-        return Ok(response);
+        try
+        {
+            _logger.LogInformation(
+                "Chat request received (conversationId: {ConversationId}, questionLength: {QuestionLength})",
+                request.ConversationId,
+                request.Question.Length);
+
+            var response = await _chat.AnswerAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Chat request failed (conversationId: {ConversationId})",
+                request.ConversationId);
+            throw;
+        }
     }
 }

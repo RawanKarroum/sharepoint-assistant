@@ -1,6 +1,10 @@
 import type { ChatRequest, ChatResponse, SyncResult } from '../types/api'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
+const LOCAL_DEV_API_BASE = 'http://localhost:5042'
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL?.trim() ||
+  (import.meta.env.DEV ? LOCAL_DEV_API_BASE : '')
 
 export class ApiError extends Error {
   status?: number
