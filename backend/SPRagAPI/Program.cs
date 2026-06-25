@@ -38,6 +38,12 @@ builder.Services.Configure<OpenAiOptions>(
 builder.Services.AddSingleton<IAiAnswerService, OpenAiAnswerService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 
+builder.Services.AddCors(options =>
+    options.AddPolicy("frontend", policy =>
+        policy.WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -47,6 +53,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("frontend");
 
 app.UseAuthorization();
 
